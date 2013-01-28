@@ -66,7 +66,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   //************************************/
 
   const int multiplicityBins = 6;
-  int multBinColl[multiplicityBins+1] = {0,35,60,90,110,150,1000};
+  int multBinColl[multiplicityBins+1] = {0,60,90,110,150,180,1000};
   const int etaBins = 2; //Positive and negative eta
 
   //************************************/
@@ -294,9 +294,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	eForward = hiHF;
 	offTracks = oldOffTracks;
 	zvtx = vz[1];
+	//Remove obvious pileup events?
 	//if(ntrks>800) continue;
       
-	//construct vector of jets in each event in form (pt, (phi, eta))
 	for(int j=0; j<JetPerEvent; j++){
 	  if(jetpt[j] > 20 && (TMath::Abs(jeteta[j]-etashift)) < etacut && TMath::Abs(vz[1]) < 30){
 	    JetObject tmp;
@@ -328,12 +328,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	//ptvector contains all pt values w/ coordinate values in event in ascending order
 	sort(ptvector.begin(), ptvector.end(), DataSort);
       
-	//reverses to sort in descending order
-	//reverse(ptvector.begin(), ptvector.end());
-
 	int etabin=-1;
 	if(ptvector.size() >= 2){
-	  //for(unsigned int ijet=1; ijet<ptvector.size(); ijet++){
 	  TVector3 ptVec2, ptVec3;
 	  eta1 = ptvector.at(0).eta;
 	  eta2 = ptvector.at(1).eta;
@@ -373,7 +369,6 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    if(pt1 > 100 && pt2 > 30){
 	      aj_100_30[multBin][etabin]->Fill(aj_evt);
 	    }
-	    //  }
 	  }
 	  for(unsigned int k=1; k<ptvector.size(); k++){
 	    double delPhi = TMath::Abs(ptvector.at(0).phi - ptvector.at(k).phi);
