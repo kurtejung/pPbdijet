@@ -37,7 +37,7 @@
 #include <algorithm>
 
 #define PI 3.14159265359
-#define JetPerEvent 600
+#define JetPerEvent 500
 
 using namespace std;
 
@@ -52,7 +52,7 @@ bool DataSort(const JetObject &data1 , const JetObject &data2){
   return data1.pt > data2.pt;
 }
 
-void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile = "Dijet_Jet80_3Run_", int nofiles=1){
+void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile = "Dijet_Jet80_3Run_", int startfile=0, int endfile=1){
   
   //************************************/
   //    Jet Cuts:
@@ -60,7 +60,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   double etacut = 2.0;
   double etashift = 0.;
   double algoConeSize = 0.5;
-  std::string jetCollection = "akPu3Calo";
+  std::string jetCollection = "akPu3PF";
   bool backgroundCalc = false;
 
   //************************************/
@@ -68,6 +68,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   const int multiplicityBins = 6;
   int multBinColl[multiplicityBins+1] = {0,35,60,90,110,150,1000};
   const int etaBins = 2; //Positive and negative eta
+  bool isMC = false;
+  const double mcWeighting[8] = {5.335E-01, 3.378E-02, 3.778E-03, 4.412E-04, 6.147E-05, 1.018E-05, 2.477E-06, 6.160E-07};
 
   //************************************/
   
@@ -78,6 +80,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   cout << "Jet Collection: " << jetCollection << endl;
   if(backgroundCalc) cout << "Background Calculation: ON" << endl;
   else cout << "Background Calculation: OFF" << endl;
+  if(isMC) cout << "MC Turned ON... Using Reweighting Factors" << endl;
+  else cout << "MC Off.  Assuming no reweighting necessary." << endl;
   cout << "****************************************" << endl;
 
   outfile = outfile+jetCollection+".root";
@@ -113,7 +117,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   // !!!!*******************************************************!!!!
   // !!  WARNING! Dijet Tree has implicit pt > 20 && |eta|<2 cuts !!
   // !!!!*******************************************************!!!!
-  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, vecPt3Pt2, offTracks, zvtx;
+  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, vecPt3Pt2, offTracks, zvtx, MCweight;
   int evtTrks;
   TTree *dijetTree = new TTree("dijetTree","");
   dijetTree->Branch("pt1",&pt1);
@@ -131,8 +135,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   dijetTree->Branch("eta3",&eta3);
   dijetTree->Branch("phi3",&phi3);
   dijetTree->Branch("rawPt3",&rawpt3);
-  dijetTree->Branch("hiHF",&eForward);
+  dijetTree->Branch("hiHFplusEta4",&eForward);
   dijetTree->Branch("vecPt3Pt2",&vecPt3Pt2);
+  dijetTree->Branch("weight",&MCweight);
 
   int nContainers = 3;
   TH1D *phiCorr[nContainers];
@@ -215,10 +220,14 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   int nEntries = 0;
   int totEntries = 0;
   jetCollection = jetCollection+"JetAnalyzer/t";
-
-  for(int ifile=0; ifile<nofiles; ifile++){
+  
+  for(int i=0; i<startfile; i++){
+    instr >> filename;
+  }
+  for(int ifile=startfile; ifile<endfile; ifile++){
     instr >> filename;
     cout << "Opened file: " << filename.c_str() << endl;
+    if(isMC) cout << "MC is ON. Using weight: " << mcWeighting[ifile] << endl;
     TFile *inf = TFile::Open(filename.c_str());
     if(!inf) cout << "Warning, file not opened correctly!" << endl;
 
@@ -250,13 +259,14 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
     t->SetBranchAddress("nTrk", &oldOffTracks);
     t->SetBranchAddress("vz", &vz);
   
-    t->SetBranchAddress("HLT_PAPixelTrackMultiplicity140_Jet80_NoJetID_v1", &MultJetXTrg);
+    if(!isMC) t->SetBranchAddress("HLT_PAPixelTrackMultiplicity140_Jet80_NoJetID_v1", &MultJetXTrg);
+    else MultJetXTrg=0;
     t->SetBranchAddress("HLT_PAJet80_NoJetID_v1",&Jet80Trg);
     t->SetBranchAddress("pHBHENoiseFilter",&pHBHENoiseFilter);
     t->SetBranchAddress("pPAcollisionEventSelectionPA",&pPAcollisionEventSelectionPA);
 
     t->SetBranchAddress("hiNtracks", &hiNtracks);
-    t->SetBranchAddress("hiHF",&hiHF);
+    t->SetBranchAddress("hiHFplusEta4",&hiHF);
 
     cout << "File entries: " << nEntries << endl;
     int step = 1;
@@ -294,6 +304,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	eForward = hiHF;
 	offTracks = oldOffTracks;
 	zvtx = vz[1];
+	if(isMC) MCweight = mcWeighting[ifile];
+	else MCweight = 1.;
 	//if(ntrks>800) continue;
       
 	//construct vector of jets in each event in form (pt, (phi, eta))
@@ -316,8 +328,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	  MBpartVector.push_back(tmp);
 	}
 	if(ptvector.size() > 1){
-	  if(TMath::Abs(vz[1]) < 30){
-	    int vzarr = (int)((30.+vz[1]) / 12.);
+	  if(TMath::Abs(vz[1]) < 20){
+	    int vzarr = (int)((20.+vz[1]) / 8.);
 	    eventVector[vzarr].push_back(ptvector);
 	    if(MBpartVector.size() > 1){
 	      MBeventVector[vzarr].push_back(MBpartVector);
@@ -326,6 +338,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	}
       
 	//ptvector contains all pt values w/ coordinate values in event in ascending order
+	//This probably doesn't do anything, but it keeps me sane
 	sort(ptvector.begin(), ptvector.end(), DataSort);
       
 	//reverses to sort in descending order
