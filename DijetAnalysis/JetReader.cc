@@ -19,7 +19,6 @@
 // 210634      517K	EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210634_autoforest_v51.root   15G    (PU = 6%)   140 kHz
 // 210614      770K	EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210614_autoforest_v51.root   22G    (PU = 6%)   140 kHz 
 
-// *** NOT USED *********
 // /store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210534_autoforest_v51.root
 // /store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210498_autoforest_v51.root
 
@@ -37,7 +36,7 @@
 #include <algorithm>
 
 #define PI 3.14159265359
-#define JetPerEvent 500
+#define JetPerEvent 600
 
 using namespace std;
 
@@ -46,14 +45,30 @@ struct JetObject{
   double eta;
   double phi;
   double rawpt;
+  double refpartonpt;
 };
+
+const int mcWeightBins[8] = {15,30,50,80,120,170,220,280};
+const double mcWeighting[8] = {5.335E-01, 3.378E-02, 3.778E-03, 4.412E-04, 6.147E-05, 1.018E-05, 2.477E-06, 6.160E-07};
 
 bool DataSort(const JetObject &data1 , const JetObject &data2){
   return data1.pt > data2.pt;
 }
 
+double getMCWeight(double refpt){
+  int i=0;
+  double weight=0;
+  while(refpt>mcWeightBins[i] && i<7) i++;
+  if(i!=7){
+    weight = mcWeighting[i];//-mcWeighting[i+1];
+  }
+  else weight=mcWeighting[i];
+
+  return weight;
+}
+
 void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile = "Dijet_Jet80_3Run_", int startfile=0, int endfile=1){
-  
+    
   //************************************/
   //    Jet Cuts:
   double phicutoff = (2.0*PI / 3.0);
@@ -68,8 +83,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   const int multiplicityBins = 6;
   int multBinColl[multiplicityBins+1] = {0,35,60,90,110,150,1000};
   const int etaBins = 2; //Positive and negative eta
-  bool isMC = false;
-  const double mcWeighting[8] = {5.335E-01, 3.378E-02, 3.778E-03, 4.412E-04, 6.147E-05, 1.018E-05, 2.477E-06, 6.160E-07};
+  bool isMC = true;
 
   //************************************/
   
@@ -117,8 +131,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   // !!!!*******************************************************!!!!
   // !!  WARNING! Dijet Tree has implicit pt > 20 && |eta|<2 cuts !!
   // !!!!*******************************************************!!!!
-  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, vecPt3Pt2, offTracks, zvtx, MCweight;
-  int evtTrks;
+  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, vecPt3Pt2, zvtx, pthat, weight;
+  int evtTrks, evtTrksSubJets, evtTrksSubLeadingJet, oldTrks;
+  bool PUFilterG, PUFilterGLoose;
   TTree *dijetTree = new TTree("dijetTree","");
   dijetTree->Branch("pt1",&pt1);
   dijetTree->Branch("eta1",&eta1);
@@ -127,9 +142,10 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   dijetTree->Branch("eta2",&eta2);
   dijetTree->Branch("phi2",&phi2);
   dijetTree->Branch("tracks",&evtTrks);
-  dijetTree->Branch("offTracks",&offTracks);
   dijetTree->Branch("rawPt1",&rawpt1);
   dijetTree->Branch("rawPt2",&rawpt2);
+  dijetTree->Branch("pthat",&pthat);
+  dijetTree->Branch("weight",&weight);
   dijetTree->Branch("zvtx",&zvtx);
   dijetTree->Branch("pt3",&pt3);
   dijetTree->Branch("eta3",&eta3);
@@ -137,7 +153,11 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   dijetTree->Branch("rawPt3",&rawpt3);
   dijetTree->Branch("hiHFplusEta4",&eForward);
   dijetTree->Branch("vecPt3Pt2",&vecPt3Pt2);
-  dijetTree->Branch("weight",&MCweight);
+  dijetTree->Branch("oldTrks",&oldTrks);
+  dijetTree->Branch("nTrksSubJets",&evtTrksSubJets);
+  dijetTree->Branch("nTrksSubLeadingJet",&evtTrksSubLeadingJet);
+  dijetTree->Branch("PUFilterG",&PUFilterG);
+  dijetTree->Branch("PUFilterGloose",&PUFilterGLoose);
 
   int nContainers = 3;
   TH1D *phiCorr[nContainers];
@@ -180,6 +200,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 
   //Raw Jet Pt Analyzer
   Float_t rawJetPt[JetPerEvent];
+  Float_t refpartonPt[JetPerEvent];
   //Float_t rawJetPhi[JetPerEvent];
   //Float_t rawJetEta[JetPerEvent];
 
@@ -189,6 +210,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   Float_t trackPhi[2500];
   //Int_t ntrks;
   Float_t vz[2];
+  Float_t zVtx[10];
 
   //Trigger Selection
   Int_t MultJetXTrg;
@@ -197,11 +219,14 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   //Event Selection
   Int_t pPAcollisionEventSelectionPA;
   Int_t pHBHENoiseFilter;
+  Int_t VertexFilterG;
+  Int_t VertexFilterGloose;
 
   //hi Tracks (N tracks w/ quality cuts && forward energy dep.)
   Int_t hiNtracks;
   Float_t hiHF;
   Int_t oldOffTracks;
+  Float_t ptHat;
 
   double avgMult[multiplicityBins];
   int avgMultColl[multiplicityBins];
@@ -212,7 +237,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   
   std::vector<std::vector< JetObject > > eventVector[5];
   std::vector<std::vector< JetObject > > MBeventVector[5];
-
+  
   std::vector< JetObject > ptvector;
   std::vector< JetObject > MBpartVector;
   std::vector< JetObject >::iterator it;
@@ -221,7 +246,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   int totEntries = 0;
   jetCollection = jetCollection+"JetAnalyzer/t";
   
-  for(int i=0; i<startfile; i++){
+ for(int i=0; i<startfile; i++){
     instr >> filename;
   }
   for(int ifile=startfile; ifile<endfile; ifile++){
@@ -252,12 +277,15 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
     t->SetBranchAddress("jteta", &jeteta);
     t->SetBranchAddress("evt", &evt);
     t->SetBranchAddress("rawpt",&rawJetPt);
+    if(isMC) t->SetBranchAddress("refparton_pt",&refpartonPt);
 
     t->SetBranchAddress("trkPt", &trackPt);
     t->SetBranchAddress("trkEta", &trackEta);
     t->SetBranchAddress("trkPhi", &trackPhi);
     t->SetBranchAddress("nTrk", &oldOffTracks);
     t->SetBranchAddress("vz", &vz);
+    t->SetBranchAddress("zVtx",&zVtx);
+    if(isMC) t->SetBranchAddress("pthat",&ptHat);
   
     if(!isMC) t->SetBranchAddress("HLT_PAPixelTrackMultiplicity140_Jet80_NoJetID_v1", &MultJetXTrg);
     else MultJetXTrg=0;
@@ -267,6 +295,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 
     t->SetBranchAddress("hiNtracks", &hiNtracks);
     t->SetBranchAddress("hiHFplusEta4",&hiHF);
+    t->SetBranchAddress("pVertexFilterCutG",&VertexFilterG);
+    t->SetBranchAddress("pVertexFilterCutGloose",&VertexFilterGloose);
 
     cout << "File entries: " << nEntries << endl;
     int step = 1;
@@ -274,12 +304,18 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
       if(ientry%100000 == 0){
 	cout << "step " << step++ << " of " << (nEntries/100000+1) << endl;
       }
+
+      for(int i=0; i<10; i++){
+	zVtx[i]=0;
+      }
       
       //reinitialize array at every new event
       for(int i=0; i<JetPerEvent; i++){
 	jetpt[i] = 0;
 	jetphi[i] = 0;
 	jeteta[i] = 0;
+	rawJetPt[i] = 0;
+	refpartonPt[i] = 0;
       }
       for(int i=0; i<2500; i++){
 	trackPt[i] = 0;
@@ -291,7 +327,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
       //Switch between High multiplicity + Jet trigger and simple Jet 80 trigger
       t->GetEntry(ientry);
       //if(MultJetXTrg && pPAcollisionEventSelectionPA && pHBHENoiseFilter){
-      if(Jet80Trg && pPAcollisionEventSelectionPA && pHBHENoiseFilter){
+      if(Jet80Trg && pPAcollisionEventSelectionPA && pHBHENoiseFilter && zVtx[1] == 0){
       
 	int multBin=0;
 	while(hiNtracks > multBinColl[multBin+1] && multBin < multiplicityBins) multBin++;
@@ -301,13 +337,21 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	avgMultColl[multBin]++;      
 
 	evtTrks = hiNtracks;
+	oldTrks = oldOffTracks;
+	evtTrksSubJets = oldTrks;
+	evtTrksSubLeadingJet = oldTrks;
 	eForward = hiHF;
-	offTracks = oldOffTracks;
+	PUFilterG = VertexFilterG;
+	PUFilterGLoose = VertexFilterGloose;
+	if(isMC){
+	  pthat = ptHat;
+	  weight = getMCWeight(pthat);
+	}
+	else{ pthat=0; weight=1; }
+	//offTracks = oldOffTracks;
 	zvtx = vz[1];
-	if(isMC) MCweight = mcWeighting[ifile];
-	else MCweight = 1.;
 	//if(ntrks>800) continue;
-      
+	      
 	//construct vector of jets in each event in form (pt, (phi, eta))
 	for(int j=0; j<JetPerEvent; j++){
 	  if(jetpt[j] > 20 && (TMath::Abs(jeteta[j]-etashift)) < etacut && TMath::Abs(vz[1]) < 30){
@@ -316,23 +360,27 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    tmp.eta = jeteta[j];
 	    tmp.phi = jetphi[j];
 	    tmp.rawpt = rawJetPt[j];
+	    if(isMC) tmp.refpartonpt = refpartonPt[j];
+	    else tmp.refpartonpt = 0;
 	    ptvector.push_back(tmp);
 	  }
 	}
-	for(int itrk=0; itrk<hiNtracks; itrk++){
+	/*for(int itrk=0; itrk<hiNtracks; itrk++){
 	  JetObject tmp;
 	  tmp.pt = trackPt[itrk];
 	  tmp.eta = trackEta[itrk];
 	  tmp.phi = trackPhi[itrk];
 	  tmp.rawpt = -1;
 	  MBpartVector.push_back(tmp);
-	}
-	if(ptvector.size() > 1){
-	  if(TMath::Abs(vz[1]) < 20){
-	    int vzarr = (int)((20.+vz[1]) / 8.);
-	    eventVector[vzarr].push_back(ptvector);
-	    if(MBpartVector.size() > 1){
-	      MBeventVector[vzarr].push_back(MBpartVector);
+	  }*/
+	if(backgroundCalc){
+	  if(ptvector.size() > 1){
+	    if(TMath::Abs(vz[1]) < 20){
+	      int vzarr = (int)((20.+vz[1]) / 8.);
+	      eventVector[vzarr].push_back(ptvector);
+	      if(MBpartVector.size() > 1){
+		MBeventVector[vzarr].push_back(MBpartVector);
+	      }
 	    }
 	  }
 	}
@@ -343,6 +391,22 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
       
 	//reverses to sort in descending order
 	//reverse(ptvector.begin(), ptvector.end());
+
+	//Do ntrack subtraction within the jet cone
+	if(ptvector.size() > 0){
+	  for(unsigned int ijet=0; ijet<ptvector.size(); ijet++){
+	    for(int itrk=0; itrk<oldTrks; itrk++){
+	      if(trackPt[itrk] > 0.1 && trackPt[itrk] < 1.2){
+		if(TMath::Sqrt(pow((trackEta[itrk] - ptvector.at(ijet).eta),2) + pow((trackPhi[itrk] - ptvector.at(ijet).phi),2)) < 0.3){
+		  if(ijet==0){
+		    evtTrksSubLeadingJet--;
+		  }
+		  evtTrksSubJets--;
+		}
+	      }
+	    }
+	  }
+	}
 
 	int etabin=-1;
 	if(ptvector.size() >= 2){
@@ -372,6 +436,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    rawpt3 = -999;
 	    vecPt3Pt2 = -999;
 	  }
+	  //cout << "Total tracks: " << hiNtracks << endl;
+	  //cout << "Tracks - leading jet: " << evtTrksSubLeadingJet << endl;
+	  //cout << "Tracks - all jets: " << evtTrksSubJets << endl;
 	  dijetTree->Fill();
 	  if(ptvector.at(0).eta > 0) etabin = 1;
 	  else etabin = 0;
@@ -427,7 +494,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	}
       
 	//Now calculate Sum pT from tracks within jet cone / Jet pT
-	for(unsigned int ijet = 0; ijet<ptvector.size(); ijet++){
+	/*	for(unsigned int ijet = 0; ijet<ptvector.size(); ijet++){
 	  double PrimJetPt = ptvector.at(ijet).pt;
 	  double PrimJetPhi = ptvector.at(ijet).phi;
 	  double PrimJetEta = ptvector.at(ijet).eta;
@@ -437,9 +504,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    if(TMath::Sqrt(pow((trackEta[itrk] - PrimJetEta),2) + pow((trackPhi[itrk] - PrimJetPhi),2)) < algoConeSize){
 	      trkSumPt += trackPt[itrk];
 	    }
-	  }
+	    }
 	  coneSumPt->Fill(trkSumPt/PrimJetPt);
-	}
+	}*/
 	ptvector.clear();
 	MBpartVector.clear();
 	//cout << "evt: " << ientry << " finished" << endl;
@@ -509,7 +576,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   //  MBevtsize += MBeventVector[i].size();
   //}
   
-  for(int i=0; i<nContainers; i++){
+  /*  for(int i=0; i<nContainers; i++){
     sprintf(histoname,"%s%d%s","Jet / Subleading Jet (p_{T} > ",(20+5*i),") Correlation");
     phiCorr[i]->SetTitle(histoname);
     phiCorr[i]->SetXTitle("#Delta#phi");
@@ -535,11 +602,10 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
     phiCorrMixAll[i]->Scale(scl);
     //phiCorrMixAll[i]->Scale(1./(float)MBevtsize);
     phiCorrMixAll[i]->Write();
-    }
-  coneSumPt->Write();
+    }*/
+  //coneSumPt->Write();
   
   dijetTree->Write();
 
   out->Close();
 }
-  
