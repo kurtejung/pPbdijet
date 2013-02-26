@@ -55,8 +55,8 @@ struct JetObject{
 const int mcWeightBins[8] = {15,30,50,80,120,170,220,280};
 const double mcWeighting[8] = {5.335E-01, 3.378E-02, 3.778E-03, 4.412E-04, 6.147E-05, 1.018E-05, 2.477E-06, 6.160E-07};
 //const int nEntriesMC[8] = {314186,312410,352229,386503,332098,287227,135885,95212}; //old nentries from bad MC sample
-//const int nEntriesMC[8] = {195175,175775,197775,183775,155475,194975,196575,103675}; //nentries for pPb MC
-const int nEntriesMC[8] = {159175,198175,200175,200375,200575,200975,200775,195575}; //nentries for pp MC
+const int nEntriesMC[8] = {195175,175775,197775,183775,155475,194975,196575,103675}; //nentries for pPb MC
+//const int nEntriesMC[8] = {159175,198175,200175,200375,200575,200975,200775,195575}; //nentries for pp MC
 
 bool DataSort(const JetObject &data1 , const JetObject &data2){
   return data1.pt > data2.pt;
@@ -88,7 +88,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   const double etacut = 3.0;
   const double etashift = 0;
   const double algoConeSize = 0.3;
-  std::string jetCollection = "akPu5PF";
+  std::string jetCollection = "akPu3PF";
   const bool backgroundCalc = false;
 
   //************************************/
@@ -404,7 +404,7 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
       while(ptHat>mcWeightBins[imc+1] && imc<7) imc++;
       pthatbinCount[imc]++;
       //if(MultJetXTrg && pPAcollisionEventSelectionPA && pHBHENoiseFilter){
-      if(/*Jet80Trg &&*/ pPAcollisionEventSelectionPA && pHBHENoiseFilter && /*hiNtracks>0 &&*/ TMath::Abs(vz[1]) < 15 && (trackMax[0] > 4 || trackMax[1] > 4)){
+      if(Jet80Trg && pPAcollisionEventSelectionPA && pHBHENoiseFilter && hiNtracks>0 && TMath::Abs(vz[1]) < 15 && (trackMax[0] > 4 || trackMax[1] > 4)){
 
 	int multBin=0;
 	while(hiNtracks > multBinColl[multBin+1] && multBin < multiplicityBins) multBin++;
