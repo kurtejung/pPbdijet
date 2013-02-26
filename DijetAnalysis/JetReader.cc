@@ -45,11 +45,18 @@ struct JetObject{
   double eta;
   double phi;
   double rawpt;
+  double refpt;
+  double refeta;
+  double refphi;
   double refpartonpt;
+  double calodR;
 };
 
 const int mcWeightBins[8] = {15,30,50,80,120,170,220,280};
 const double mcWeighting[8] = {5.335E-01, 3.378E-02, 3.778E-03, 4.412E-04, 6.147E-05, 1.018E-05, 2.477E-06, 6.160E-07};
+//const int nEntriesMC[8] = {314186,312410,352229,386503,332098,287227,135885,95212}; //old nentries from bad MC sample
+//const int nEntriesMC[8] = {195175,175775,197775,183775,155475,194975,196575,103675}; //nentries for pPb MC
+const int nEntriesMC[8] = {159175,198175,200175,200375,200575,200975,200775,195575}; //nentries for pp MC
 
 bool DataSort(const JetObject &data1 , const JetObject &data2){
   return data1.pt > data2.pt;
@@ -58,7 +65,7 @@ bool DataSort(const JetObject &data1 , const JetObject &data2){
 double getMCWeight(double refpt){
   int i=0;
   double weight=0;
-  while(refpt>mcWeightBins[i] && i<7) i++;
+  while(refpt>mcWeightBins[i+1] && i<7) i++;
   if(i!=7){
     weight = mcWeighting[i];//-mcWeighting[i+1];
   }
@@ -67,23 +74,29 @@ double getMCWeight(double refpt){
   return weight;
 }
 
+double getMCNentries(double refpt){
+  int i=0;
+  while(refpt>mcWeightBins[i+1] && i<7) i++;
+  return nEntriesMC[i];
+}
+
 void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile = "Dijet_Jet80_3Run_", int startfile=0, int endfile=1){
     
   //************************************/
   //    Jet Cuts:
-  double phicutoff = (2.0*PI / 3.0);
-  double etacut = 2.0;
-  double etashift = 0.;
-  double algoConeSize = 0.5;
-  std::string jetCollection = "akPu3PF";
-  bool backgroundCalc = false;
+  const double phicutoff = (2.0*PI / 3.0);
+  const double etacut = 3.0;
+  const double etashift = 0;
+  const double algoConeSize = 0.3;
+  std::string jetCollection = "akPu5PF";
+  const bool backgroundCalc = false;
 
   //************************************/
 
   const int multiplicityBins = 6;
-  int multBinColl[multiplicityBins+1] = {0,35,60,90,110,150,1000};
+  const int multBinColl[multiplicityBins+1] = {0,35,60,90,110,150,1000};
   const int etaBins = 2; //Positive and negative eta
-  bool isMC = true;
+  const bool isMC = false;
 
   //************************************/
   
@@ -131,9 +144,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   // !!!!*******************************************************!!!!
   // !!  WARNING! Dijet Tree has implicit pt > 20 && |eta|<2 cuts !!
   // !!!!*******************************************************!!!!
-  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, vecPt3Pt2, zvtx, pthat, weight;
+  double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, eForwardBarrel, eBackward, eBackwardBarrel, vecPt3Pt2, zvtx, pthat, weight, NMCentries, refEta1, refEta2, refEta3, refPhi1, refPhi2, refPhi3, refPt1, refPt2, refPt3, calodr1, calodr2;
   int evtTrks, evtTrksSubJets, evtTrksSubLeadingJet, oldTrks;
-  bool PUFilterG, PUFilterGLoose;
+  bool PUFilterG, PUFilterGLoose, PUFilterGPlus;
   TTree *dijetTree = new TTree("dijetTree","");
   dijetTree->Branch("pt1",&pt1);
   dijetTree->Branch("eta1",&eta1);
@@ -144,20 +157,36 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   dijetTree->Branch("tracks",&evtTrks);
   dijetTree->Branch("rawPt1",&rawpt1);
   dijetTree->Branch("rawPt2",&rawpt2);
+  dijetTree->Branch("refPt1",&refPt1);
+  dijetTree->Branch("refPt2",&refPt2);
+  dijetTree->Branch("refEta1",&refEta1); 
+  dijetTree->Branch("refEta2",&refEta2);
+  dijetTree->Branch("refPhi1",&refPhi1);
+  dijetTree->Branch("refPhi2",&refPhi2);
+  dijetTree->Branch("calodr1",&calodr1);
+  dijetTree->Branch("calodr2",&calodr2);
   dijetTree->Branch("pthat",&pthat);
   dijetTree->Branch("weight",&weight);
+  dijetTree->Branch("MCpthatEntries",&NMCentries);
   dijetTree->Branch("zvtx",&zvtx);
   dijetTree->Branch("pt3",&pt3);
   dijetTree->Branch("eta3",&eta3);
   dijetTree->Branch("phi3",&phi3);
   dijetTree->Branch("rawPt3",&rawpt3);
+  dijetTree->Branch("refPt3",&refPt3);
+  dijetTree->Branch("refEta3",&refEta3);
+  dijetTree->Branch("refPhi3",&refPhi3);
   dijetTree->Branch("hiHFplusEta4",&eForward);
+  dijetTree->Branch("hiHFplus",&eForwardBarrel);
+  dijetTree->Branch("hiHFminusEta4",&eBackward);
+  dijetTree->Branch("hiHFminus",&eBackwardBarrel);
   dijetTree->Branch("vecPt3Pt2",&vecPt3Pt2);
   dijetTree->Branch("oldTrks",&oldTrks);
   dijetTree->Branch("nTrksSubJets",&evtTrksSubJets);
   dijetTree->Branch("nTrksSubLeadingJet",&evtTrksSubLeadingJet);
   dijetTree->Branch("PUFilterG",&PUFilterG);
   dijetTree->Branch("PUFilterGloose",&PUFilterGLoose);
+  dijetTree->Branch("PUFilterGplus",&PUFilterGPlus);
 
   int nContainers = 3;
   TH1D *phiCorr[nContainers];
@@ -198,19 +227,28 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   Float_t jeteta[JetPerEvent];
   int evt = 0;
 
-  //Raw Jet Pt Analyzer
+  //Raw Jet Analyzer
   Float_t rawJetPt[JetPerEvent];
   Float_t refpartonPt[JetPerEvent];
-  //Float_t rawJetPhi[JetPerEvent];
-  //Float_t rawJetEta[JetPerEvent];
+  Float_t trackMax[JetPerEvent];
+  Float_t refJetPhi[JetPerEvent];
+  Float_t refJetEta[JetPerEvent];
+  Float_t refJetPt[JetPerEvent];
+  Float_t matchedR[JetPerEvent];
 
   //TrackAnalyzer
   Float_t trackPt[2500];
   Float_t trackEta[2500];
   Float_t trackPhi[2500];
+  Float_t trkDz1[2500];
+  Float_t trkDzError1[2500];
+  Float_t trkDxy1[2500];
+  Float_t trkDxyError1[2500];
+  Float_t trkPtError[2500];
+  Bool_t highPurity[2500];
+
   //Int_t ntrks;
   Float_t vz[2];
-  Float_t zVtx[10];
 
   //Trigger Selection
   Int_t MultJetXTrg;
@@ -221,12 +259,22 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
   Int_t pHBHENoiseFilter;
   Int_t VertexFilterG;
   Int_t VertexFilterGloose;
+  Int_t VertexFilterGplus;
 
   //hi Tracks (N tracks w/ quality cuts && forward energy dep.)
   Int_t hiNtracks;
-  Float_t hiHF;
+  Float_t hiHFplusEta4;
+  Float_t hiHFplus;
+  Float_t hiHFminusEta4;
+  Float_t hiHFminus;
   Int_t oldOffTracks;
   Float_t ptHat;
+  Int_t run;
+
+  int pthatbinCount[8];
+  for(int i=0; i<8; i++){
+    pthatbinCount[i]=0;
+  }
 
   double avgMult[multiplicityBins];
   int avgMultColl[multiplicityBins];
@@ -276,15 +324,28 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
     t->SetBranchAddress("jtphi", &jetphi);
     t->SetBranchAddress("jteta", &jeteta);
     t->SetBranchAddress("evt", &evt);
+    t->SetBranchAddress("run", &run);
     t->SetBranchAddress("rawpt",&rawJetPt);
+    if(isMC) t->SetBranchAddress("refpt",&refJetPt);
+    if(isMC) t->SetBranchAddress("refeta",&refJetEta);
+    if(isMC) t->SetBranchAddress("refphi",&refJetPhi);
+    t->SetBranchAddress("matchedR",&matchedR);
+    t->SetBranchAddress("trackMax",&trackMax);
     if(isMC) t->SetBranchAddress("refparton_pt",&refpartonPt);
 
     t->SetBranchAddress("trkPt", &trackPt);
     t->SetBranchAddress("trkEta", &trackEta);
     t->SetBranchAddress("trkPhi", &trackPhi);
+    
+    t->SetBranchAddress("highPurity", &highPurity);
+    t->SetBranchAddress("trkDz1", &trkDz1);
+    t->SetBranchAddress("trkDzError1", &trkDzError1);
+    t->SetBranchAddress("trkDxy1", &trkDxy1);
+    t->SetBranchAddress("trkDxyError1", &trkDxyError1);
+    t->SetBranchAddress("trkPtError", &trkPtError);
+
     t->SetBranchAddress("nTrk", &oldOffTracks);
     t->SetBranchAddress("vz", &vz);
-    t->SetBranchAddress("zVtx",&zVtx);
     if(isMC) t->SetBranchAddress("pthat",&ptHat);
   
     if(!isMC) t->SetBranchAddress("HLT_PAPixelTrackMultiplicity140_Jet80_NoJetID_v1", &MultJetXTrg);
@@ -294,9 +355,13 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
     t->SetBranchAddress("pPAcollisionEventSelectionPA",&pPAcollisionEventSelectionPA);
 
     t->SetBranchAddress("hiNtracks", &hiNtracks);
-    t->SetBranchAddress("hiHFplusEta4",&hiHF);
+    t->SetBranchAddress("hiHFplusEta4",&hiHFplusEta4);
+    t->SetBranchAddress("hiHFplus",&hiHFplus);
+    t->SetBranchAddress("hiHFminusEta4",&hiHFminusEta4);
+    t->SetBranchAddress("hiHFminus",&hiHFminus);
     t->SetBranchAddress("pVertexFilterCutG",&VertexFilterG);
     t->SetBranchAddress("pVertexFilterCutGloose",&VertexFilterGloose);
+    t->SetBranchAddress("pVertexFilterCutGplus",&VertexFilterGplus);
 
     cout << "File entries: " << nEntries << endl;
     int step = 1;
@@ -304,10 +369,8 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
       if(ientry%100000 == 0){
 	cout << "step " << step++ << " of " << (nEntries/100000+1) << endl;
       }
-
-      for(int i=0; i<10; i++){
-	zVtx[i]=0;
-      }
+      //remove the Pbp events to avoid serious confusion
+	if(run>211256) continue;
       
       //reinitialize array at every new event
       for(int i=0; i<JetPerEvent; i++){
@@ -315,53 +378,84 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	jetphi[i] = 0;
 	jeteta[i] = 0;
 	rawJetPt[i] = 0;
+        refJetPt[i] = 0;
+	refJetEta[i] = 0;
+	refJetPhi[i] = 0;
 	refpartonPt[i] = 0;
+	matchedR[i] = 0;
       }
       for(int i=0; i<2500; i++){
 	trackPt[i] = 0;
 	trackEta[i] = 0;
 	trackPhi[i] = 0;
+	trkDz1[i] = 0;
+	trkDzError1[i] = 0;
+	trkDxy1[i] = 0;
+	trkDxyError1[i] = 0;
+	trkPtError[i] = 0;
+	highPurity[i] = 0;
       }
 
       //check for trigger pass at first to save time
       //Switch between High multiplicity + Jet trigger and simple Jet 80 trigger
       t->GetEntry(ientry);
+
+      int imc=0;
+      while(ptHat>mcWeightBins[imc+1] && imc<7) imc++;
+      pthatbinCount[imc]++;
       //if(MultJetXTrg && pPAcollisionEventSelectionPA && pHBHENoiseFilter){
-      if(Jet80Trg && pPAcollisionEventSelectionPA && pHBHENoiseFilter && zVtx[1] == 0){
-      
+      if(/*Jet80Trg &&*/ pPAcollisionEventSelectionPA && pHBHENoiseFilter && /*hiNtracks>0 &&*/ TMath::Abs(vz[1]) < 15 && (trackMax[0] > 4 || trackMax[1] > 4)){
+
 	int multBin=0;
 	while(hiNtracks > multBinColl[multBin+1] && multBin < multiplicityBins) multBin++;
 	if(multBin==multiplicityBins) multBin--;
       
 	avgMult[multBin] += hiNtracks;
-	avgMultColl[multBin]++;      
+	avgMultColl[multBin]++;
 
 	evtTrks = hiNtracks;
 	oldTrks = oldOffTracks;
-	evtTrksSubJets = oldTrks;
-	evtTrksSubLeadingJet = oldTrks;
-	eForward = hiHF;
+	evtTrksSubJets = hiNtracks;
+	evtTrksSubLeadingJet = hiNtracks;
+	eForward = hiHFplusEta4;
+	eForwardBarrel = hiHFplus;
+	eBackward = hiHFminusEta4;
+	eBackwardBarrel = hiHFminus;
 	PUFilterG = VertexFilterG;
 	PUFilterGLoose = VertexFilterGloose;
+	PUFilterGPlus = VertexFilterGplus;
 	if(isMC){
 	  pthat = ptHat;
 	  weight = getMCWeight(pthat);
+	  //weight = mcWeightBins[ifile];
+	  NMCentries = getMCNentries(ptHat);
 	}
-	else{ pthat=0; weight=1; }
+	else{ pthat=0; weight=1; NMCentries=1;}
 	//offTracks = oldOffTracks;
 	zvtx = vz[1];
 	//if(ntrks>800) continue;
-	      
+
 	//construct vector of jets in each event in form (pt, (phi, eta))
 	for(int j=0; j<JetPerEvent; j++){
-	  if(jetpt[j] > 20 && (TMath::Abs(jeteta[j]-etashift)) < etacut && TMath::Abs(vz[1]) < 30){
+	  if(jetpt[j] > 20 && (TMath::Abs(jeteta[j]-etashift)) < etacut){
 	    JetObject tmp;
 	    tmp.pt = jetpt[j];
 	    tmp.eta = jeteta[j];
 	    tmp.phi = jetphi[j];
 	    tmp.rawpt = rawJetPt[j];
-	    if(isMC) tmp.refpartonpt = refpartonPt[j];
-	    else tmp.refpartonpt = 0;
+	    tmp.calodR = matchedR[j];
+	    if(isMC){
+	      tmp.refpt = refJetPt[j];
+	      tmp.refeta = refJetEta[j];
+	      tmp.refphi = refJetPhi[j];
+	      tmp.refpartonpt = refpartonPt[j];
+	    }
+	    else{
+	      tmp.refpt = 0;
+	      tmp.refeta = 0;
+	      tmp.refphi = 0;
+	      tmp.refpartonpt = 0;
+	    }
 	    ptvector.push_back(tmp);
 	  }
 	}
@@ -386,22 +480,26 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	}
       
 	//ptvector contains all pt values w/ coordinate values in event in ascending order
-	//This probably doesn't do anything, but it keeps me sane
+	//Jet Trees should be sorted in descending pt order, but this is just a precaution
 	sort(ptvector.begin(), ptvector.end(), DataSort);
-      
 	//reverses to sort in descending order
 	//reverse(ptvector.begin(), ptvector.end());
-
+	
 	//Do ntrack subtraction within the jet cone
 	if(ptvector.size() > 0){
 	  for(unsigned int ijet=0; ijet<ptvector.size(); ijet++){
 	    for(int itrk=0; itrk<oldTrks; itrk++){
-	      if(trackPt[itrk] > 0.1 && trackPt[itrk] < 1.2){
-		if(TMath::Sqrt(pow((trackEta[itrk] - ptvector.at(ijet).eta),2) + pow((trackPhi[itrk] - ptvector.at(ijet).phi),2)) < 0.3){
-		  if(ijet==0){
-		    evtTrksSubLeadingJet--;
+	      if(trackPt[itrk] > 0.4 && trackPt[itrk]<1.2){
+		if(fabs(trkDz1[itrk]/trkDzError1[itrk])<3. && 
+		   fabs(trkDxy1[itrk]/trkDxyError1[itrk])<3. && 
+		   fabs(trkPtError[itrk]/trackPt[itrk])<0.1 && 
+		   highPurity[itrk]){
+		  if(TMath::Sqrt(pow((trackEta[itrk] - ptvector.at(ijet).eta),2) + pow((trackPhi[itrk] - ptvector.at(ijet).phi),2)) < 0.3){
+		    if(ijet==0){
+		      evtTrksSubLeadingJet--;
+		    }
+		    evtTrksSubJets--;
 		  }
-		  evtTrksSubJets--;
 		}
 	      }
 	    }
@@ -420,11 +518,22 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	  pt2 = ptvector.at(1).pt;
 	  rawpt1 = ptvector.at(0).rawpt;
 	  rawpt2 = ptvector.at(1).rawpt;
+	  refPt1 = ptvector.at(0).refpt;
+	  refPt2 = ptvector.at(1).refpt;
+	  refEta1 = ptvector.at(0).refeta;
+	  refEta2 = ptvector.at(1).refeta;
+	  refPhi1 = ptvector.at(0).refphi;
+	  refPhi2 = ptvector.at(1).refphi;
+	  calodr1 = ptvector.at(0).calodR;
+	  calodr2 = ptvector.at(1).calodR;
 	  if(ptvector.size() > 2){
 	    eta3 = ptvector.at(2).eta;
 	    phi3 = ptvector.at(2).phi;
 	    pt3 = ptvector.at(2).pt;
 	    rawpt3 = ptvector.at(2).rawpt;
+	    refPt3 = ptvector.at(2).refpt;
+	    refEta3 = ptvector.at(2).refeta;
+	    refPhi3 = ptvector.at(2).refphi;
 	    ptVec2.SetPtEtaPhi(pt2,eta2,phi2);
 	    ptVec3.SetPtEtaPhi(pt3,eta3,phi3);
 	    vecPt3Pt2 = (ptVec2+ptVec3).Mag();
@@ -434,6 +543,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    phi3 = -999;
 	    pt3 = -999;
 	    rawpt3 = -999;
+	    refPt3 = -999;
+	    refEta3 = -999;
+	    refPhi3 = -999;
 	    vecPt3Pt2 = -999;
 	  }
 	  //cout << "Total tracks: " << hiNtracks << endl;
@@ -506,13 +618,17 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 	    }
 	    }
 	  coneSumPt->Fill(trkSumPt/PrimJetPt);
-	}*/
+	  }*/
 	ptvector.clear();
 	MBpartVector.clear();
-	//cout << "evt: " << ientry << " finished" << endl;
       }
     }
     cout << "foreground done" << endl;
+  }
+  if(isMC){
+    for(int i=0; i<8; i++){
+      cout << "nEntries in pthat bin: " << i << " = " << pthatbinCount[i] << endl;
+    }
   }
   
   //Now do event mixing for the background - mix leading pt jet with all jets in all other events:
