@@ -5,24 +5,8 @@
 //  Kurt Jung, Purdue University
 //  Created Sept 17, 2012
 //  Modified 1/21/13 for pA 2013 Run @ LHC (CMS)
+//  Latest Modification 2/26/13 (v. 2.5.0)
 // *********************************************************************//
-
-// **********************
-// Runs:     Events:   Data Location:                                                                                     Filesize:   Pileup:   Int. Rate:
-// 210837   root://eoscms//eos/cms/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210837_autoforest_v51.root
-// 210818   root://eoscms//eos/cms/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210818_autoforest_v51.root
-// 210759   root://eoscms//eos/cms/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210759_autoforest_v51.root
-// 210738   root://eoscms//eos/cms/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210738_autoforest_v51.root
-// 210737      170K     EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210737_autoforest_v51.root
-// 210676      874K     EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210676_autoforest_v51.root   32G    (PU = 6%)   220 kHz
-// 210635      528K	EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210635_autoforest_v51.root   15G    (PU = 6%)   140 kHz
-// 210634      517K	EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210634_autoforest_v51.root   15G    (PU = 6%)   140 kHz
-// 210614      770K	EOS:/store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210614_autoforest_v51.root   22G    (PU = 6%)   140 kHz 
-
-// /store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210534_autoforest_v51.root
-// /store/group/phys_heavyions/velicanu/forest/PA2013_HiForest_Express_r210498_autoforest_v51.root
-
-// **********************
 
 #include "TTree.h"
 #include "TFile.h"
@@ -141,9 +125,9 @@ void JetReader(std::string infile = "PA2013_filelist.txt", std::string outfile =
 
 
   //Dijet Tree Creation
-  // !!!!*******************************************************!!!!
-  // !!  WARNING! Dijet Tree has implicit pt > 20 && |eta|<2 cuts !!
-  // !!!!*******************************************************!!!!
+  // !!!!**************************************************************!!!!
+  // !!  WARNING! Dijet Tree has implicit pt > 20 && |eta|<"etacut" cuts !!
+  // !!!!**************************************************************!!!!
   double pt1, pt2, pt3, phi1, phi2, phi3, eta1, eta2, eta3, rawpt1, rawpt2, rawpt3, eForward, eForwardBarrel, eBackward, eBackwardBarrel, vecPt3Pt2, zvtx, pthat, weight, NMCentries, refEta1, refEta2, refEta3, refPhi1, refPhi2, refPhi3, refPt1, refPt2, refPt3, calodr1, calodr2;
   int evtTrks, evtTrksSubJets, evtTrksSubLeadingJet, oldTrks;
   bool PUFilterG, PUFilterGLoose, PUFilterGPlus;
