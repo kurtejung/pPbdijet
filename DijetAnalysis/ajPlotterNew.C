@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 #include "TFile.h"
 #include "TH1D.h"
@@ -13,13 +14,14 @@
 #include "TLatex.h"
 #include "TLegend.h"
 #include "TROOT.h"
+#include "TStyle.h"
 
 const double PI=3.1415926;
 
 double findDelPhiAngle(TH1D *input, int parorErr){
   
   TF1 *fitter = new TF1("fitter","[1]*exp((x-3.1415)/[0])/((1-exp(-3.1415/[0]))*[0])",0,4);
-  fitter->SetParameters(1.0/input->GetMaximum(),0.2);
+  //fitter->SetParameters(1.0/input->GetMaximum(),0.2);
   fitter->SetParLimits(0,0.15,0.35);
   input->Fit("fitter","qN0","",2.0944,3.1415);
   if(parorErr==1){
@@ -33,23 +35,24 @@ double findDelPhiAngle(TH1D *input, int parorErr){
 
 void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
 
-  std::string outputname = "hist_output_etaLT3_akPu5PF.root";
+  std::string outputname = "hist_output_etaLT3_akPu3PF_ForPawan.root";
   //double multbins[4] = {0,47,66,90}; //(~equal integration)
   //double multbins[6] = {0,0,10,15,20,30}; //hiHFplusEta4 binning
   double multbins[7] = {0,0,20,25,30,40,90}; //hiHFsumEta4 binning
   //double multbins[6] = {0,60,90,110,150,180}; //mult binning
   double phitop=2, phibot=3;
   double deltaPhiCut = (phitop*PI/phibot);
-  std::string jetcoll = "akPu3Calo";
+  std::string jetcoll = "akPu3PF";
 
   //std::string infile = "LowPtSample_v71_akPu5PF.root"; //lowPt Sample
-  std::string infile = "FullForest_v77_etaLT3_akPu3Calo.root"; //updated JECs
+  std::string infile = "FullForest_v77_etaLT3_akPu3PF.root"; //updated JECs
   TFile *f0 = new TFile(infile.c_str(),"OLD");
   if(!f0){ cout << "You don't have this jet collection yet!!" << endl; exit(0);}
   TFile *f1 = new TFile("PbPb_ReReco_Full_etaLT3_akPu3PF.root","OLD");
   TTree *ntree = (TTree*)f1->Get("dijetTree");
   TTree *dijetTree = (TTree*)f0->Get("dijetTree");
 
+  //TFile *f2 = new TFile("PythiaSignal_PP_MC_akPu3PF.root","OLD");
   TFile *f2 = new TFile("YaxianPPData_etaLT3_akPu3PF.root","OLD");
   TTree *ppTree = (TTree*)f2->Get("dijetTree");
 
@@ -62,7 +65,7 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   //mcTree->AddFriend(wTree);
   //mcTree->AddFriend(evtTree);
 
-  TFile *fMC = new TFile("PythiaMIT_out_etaLT3_akPu3Calo.root");
+  TFile *fMC = new TFile("PythiaMIT_out_v77_etaLT3_akPu3PF.root");
   TTree *mcTree = (TTree*)fMC->Get("dijetTree");
   
   //TCanvas *c1 = new TCanvas("c1","",1200,800);
@@ -70,11 +73,14 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
 
   TH1D *mult0[7], *delphi0[7], *MC[6], *MCdphi[6], *mult[9], *multbg[9], *delphi[9];
   char* histoname = new char[40];
+  char* histotitle = new char[50];
   for(int i=0; i<7; i++){
     sprintf(histoname,"%s%d%s","mult",i,"_0");
+    sprintf(histotitle,"%s%d","pt2_div_pt1, HFbin ",i);
     mult0[i] = new TH1D(histoname,"",10,0,1);
     mult0[i]->Sumw2();
     sprintf(histoname,"%s%d%s","delphi",i,"_0");
+    sprintf(histotitle,"%s%d","deltaPhi Distrib, HFbin ",i);
     delphi0[i] = new TH1D(histoname,"",30,0,PI);
     delphi0[i]->Sumw2();
   }
@@ -109,17 +115,17 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
     ppdphi[i]->Sumw2();
   }
 
-  TH1D *mult_etapos[6];
-  TH1D *mult_etaneg[6];
+  TH1D *mult_etalead[6];
+  TH1D *mult_etasublead[6];
   for(int i=0; i<6; i++){
-    sprintf(histoname,"%s%d","mult_etapos",i);
-    mult_etapos[i] = new TH1D(histoname,"",10,0,1);
-    sprintf(histoname,"%s%d","mult_etaneg",i);
-    mult_etaneg[i] = new TH1D(histoname,"",10,0,1);
-    mult_etapos[i]->Sumw2();
-    mult_etaneg[i]->Sumw2();
-    mult_etaneg[i]->SetLineColor(2);
-    mult_etaneg[i]->SetMarkerColor(2);
+    sprintf(histoname,"%s%d","eta_lead",i);
+    sprintf(histotitle,"%s%d","eta distrib. leading jet, hf ", i);
+    mult_etalead[i] = new TH1D(histoname,histotitle,12,-3,3);
+    sprintf(histoname,"%s%d","eta_sublead",i);
+    sprintf(histotitle,"%s%d","eta distrib. subleading jet, hf ", i);
+    mult_etasublead[i] = new TH1D(histoname,histotitle,12,-3,3);
+    mult_etalead[i]->Sumw2();
+    mult_etasublead[i]->Sumw2();
   }
 
   TH1D *vz0 = new TH1D("vz0","",10,0,1);
@@ -176,20 +182,20 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
 
   //cuts for pPb Data
   std::string cut0_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut1_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4<" + m3Str + " && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut2_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>="+m3Str+" && hiHFplusEta4+hiHFminusEta4<"+m4Str+" && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut3_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>=" + m4Str +" && hiHFplusEta4+hiHFminusEta4<" + m5Str + " && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut4_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>="+m5Str+" && hiHFplusEta4+hiHFminusEta4<"+m6Str+" && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut5_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>="+m6Str+" && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
-  std::string cut6_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>=40 && PUFilterGplus && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut1_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4<" + m3Str + "  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut2_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>="+m3Str+" && hiHFplusEta4+hiHFminusEta4<"+m4Str+"  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut3_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>=" + m4Str +" && hiHFplusEta4+hiHFminusEta4<" + m5Str + "  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut4_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>="+m5Str+" && hiHFplusEta4+hiHFminusEta4<"+m6Str+"  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut5_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>="+m6Str+"  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
+  std::string cut6_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>=40  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;//+" && pt2<30";
 
   //cuts for pp Data
-  std::string cutpp0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
-  std::string cutpp1 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
-  std::string cutpp2 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
-  std::string cutpp3 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
-  std::string cutpp4 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
-  std::string cutpp5 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr;
+  std::string cutpp0 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
+  std::string cutpp1 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
+  std::string cutpp2 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
+  std::string cutpp3 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && pthat>50 &&  rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
+  std::string cutpp4 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
+  std::string cutpp5 = "(weight/MCpthatEntries)*(pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && pthat>50  && rawPt1>15 && rawPt2>15 && acos(cos(phi1-phi2)) > "+dphiStr+")";
 
   //cuts for vz dependence study
   std::string cutvz0 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && hiHFplusEta4+hiHFminusEta4>=" + m6Str +" && abs(zvtx)<20 && abs(zvtx)>3 && acos(cos(phi1-phi2)) > "+dphiStr;
@@ -235,12 +241,12 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   std::string phicut6_0 = "pt1*1.0>"+ p1Str + " && pt2*1.0>" + p2Str + " && rawPt1>15 && rawPt2>15 && PUFilterGplus && hiHFplusEta4+hiHFminusEta4>=40";
 
   //cuts for phi correlations for pp data
-  std::string ppphicut0 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
-  std::string ppphicut1 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
-  std::string ppphicut2 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
-  std::string ppphicut3 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
-  std::string ppphicut4 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
-  std::string ppphicut5 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
+  std::string ppphicut0 = "(pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15)";
+  std::string ppphicut1 = "(weight/MCpthatEntries)*(pt1>"+ p1Str + " && pt2>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15)";// && hiHFplusEta4+hiHFminusEta4<"+m3Str+")";
+    std::string ppphicut2 = "(weight/MCpthatEntries)*(pt1>"+ p1Str + " && pt2>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15)";// && hiHFplusEta4+hiHFminusEta4>="+m3Str+" && hiHFplusEta4+hiHFminusEta4<"+m4Str+")";
+    std::string ppphicut3 = "(weight/MCpthatEntries)*(pt1>"+ p1Str + " && pt2>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15)";// && hiHFplusEta4+hiHFminusEta4>="+m4Str+" && hiHFplusEta4+hiHFminusEta4<"+m5Str+")";
+    std::string ppphicut4 = "(weight/MCpthatEntries)*(pt1>"+ p1Str + " && pt2>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15)";// && hiHFplusEta4+hiHFminusEta4>="+m5Str+" && hiHFplusEta4+hiHFminusEta4<"+m6Str+")";
+    std::string ppphicut5 = "(weight/MCpthatEntries)*(pt1>"+ p1Str + " && pt2>" + p2Str + " && pthat>50 && rawPt1>15 && rawPt2>15)";// && hiHFplusEta4+hiHFminusEta4>="+m6Str+" && hiHFplusEta4+hiHFminusEta4 < 90 )";
 
   //cuts for phi correlations for PbPb data
   std::string phicut90 = "pt1>"+ p1Str + " && pt2>" + p2Str + " && rawPt1>15 && rawPt2>15";
@@ -271,13 +277,15 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
       ptRatioErr[i][j] = 0;
     }
   }
-  double pt1,pt2,phi1,phi2,eta1,eta2,hiHF,hiHFminus;
+  double pt1,pt2,phi1,phi2,eta1,eta2,hiHF,hiHFminus,rawPt1,rawPt2;
   int tracks;
   bool PU;
   dijetTree->SetBranchAddress("pt1",&pt1);
   dijetTree->SetBranchAddress("pt2",&pt2);
   dijetTree->SetBranchAddress("phi1",&phi1);
   dijetTree->SetBranchAddress("phi2",&phi2);
+  dijetTree->SetBranchAddress("rawPt1",&rawPt1);
+  dijetTree->SetBranchAddress("rawPt2",&rawPt2);
   dijetTree->SetBranchAddress("eta1",&eta1);
   dijetTree->SetBranchAddress("eta2",&eta2);
   dijetTree->SetBranchAddress("tracks",&tracks);
@@ -286,8 +294,8 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   dijetTree->SetBranchAddress("PUFilterGplus",&PU);
   for(int i=0; i<dijetTree->GetEntries(); i++){
     dijetTree->GetEntry(i);
-    if(pt1 >= p1 && pt2 >= p2 && PU){
-      int j=0;
+    if(pt1 >= p1 && pt2 >= p2 && PU && rawPt1>15 && rawPt2>15){
+      int j=1;
       while((hiHF+hiHFminus)>multbins[j+1] && j<5) j++;
       int k=1;
       while(acos(cos(phi1-phi2))>(k*PI/10.)) k++;
@@ -296,12 +304,10 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
       nJets[j][k-1]++;
 
       if(acos(cos(phi1-phi2)) > deltaPhiCut){ 
-	if(eta2>0){
-	  mult_etapos[j]->Fill(pt2/pt1);
-	}
-	if(eta2<0){
-	  mult_etaneg[j]->Fill(pt2/pt1);
-	}
+	mult_etalead[j]->Fill(eta1);
+	mult_etasublead[j]->Fill(eta2);
+	mult_etalead[0]->Fill(eta1);
+	mult_etasublead[0]->Fill(eta2);
       }
     }
   }
@@ -362,10 +368,10 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
       PbavgPt[i]->SetBinContent(j+1,PbptRatio[i][j]);
       PbavgPt[i]->SetBinError(j+1, PbptRatioErr[i][j]);
     }
-    mult_etapos[i]->Scale(1./mult_etapos[i]->Integral());
-    mult_etaneg[i]->Scale(1./mult_etaneg[i]->Integral());
-    mult_etapos[i]->SetMaximum(0.3);
-    mult_etapos[i]->SetMinimum(0);
+    // mult_etapos[i]->Scale(1./mult_etapos[i]->Integral());
+    //mult_etaneg[i]->Scale(1./mult_etaneg[i]->Integral());
+    //mult_etapos[i]->SetMaximum(0.3);
+    //mult_etapos[i]->SetMinimum(0);
   }
       
   dijetTree->Draw("acos(cos(phi1-phi2))>>delphi0_0",phicut0_0.c_str());
@@ -415,6 +421,7 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
     delphi0[i]->Scale(1./delphi0[i]->Integral());
     delphi0[i]->SetYTitle("Event Fraction");
     delphi0[i]->SetMaximum(3);
+    delphi0[i]->SetAxisRange(0.00002,3,"Y");
   }
   for(int i=0; i<9; i++){
     delphi[i]->Scale(1./delphi[i]->Integral());
@@ -487,7 +494,7 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   std::string histYtitle("Event Fraction");
   for(int i=0; i<7; i++){
     mult0[i]->Scale(1./mult0[i]->Integral());
-    mult0[i]->SetXTitle(histXtitle.c_str());
+    //mult0[i]->SetXTitle(histXtitle.c_str());
     mult0[i]->SetYTitle(histYtitle.c_str());
     mult0[i]->SetAxisRange(0,0.30,"Y");
     mult0[i]->SetMaximum(0.30);
@@ -527,6 +534,16 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
     MCgr[i]->SetLineColor(2);
     MCgr[i]->SetMarkerStyle(23);
   }
+
+  Double_t ppavg0[6] = {pp[0]->GetMean(), pp[1]->GetMean(), pp[2]->GetMean(), pp[3]->GetMean(), pp[4]->GetMean(), pp[5]->GetMean()};
+  Double_t ppavg2[6] = {pp[0]->GetMeanError(), pp[1]->GetMeanError(), pp[2]->GetMeanError(), pp[3]->GetMeanError(), pp[4]->GetMeanError(), pp[5]->GetMeanError()};
+  TGraphErrors* ppgr[6];
+  for(int i=0; i<6; i++){
+    ppgr[i] = new TGraphErrors(1,(ppavg0+i),(avg1+i),(ppavg2+i),(avg3+i));
+    ppgr[i]->SetMarkerColor(4);
+    ppgr[i]->SetLineColor(4);
+    ppgr[i]->SetMarkerStyle(23);
+  }
     
   std::string mult0_0name = std::string("X (") + p1Str + "/" + p2Str + "), p+Pb, #sqrt{s}= 5 TeV, tracks<"+m2Str;
   std::string mult1_0name = std::string("X (")+p1Str+"/"+p2Str+"), p+Pb, #sqrt{s} = 5 TeV, "+m2Str+"<tracks<"+m3Str;
@@ -546,30 +563,32 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   std::string mult4_1name = std::string("X (") + p1Str + "/" + p2Str + "), Pb+Pb #sqrt{s} = 2.76 TeV, 50-60%";
   std::string mult5_1name = std::string("X (") + p1Str + "/" + p2Str + "), Pb+Pb #sqrt{s} = 2.76 TeV, 40-50%";
   
-  TLatex* plum = new TLatex(0.1,0.22,"pPb #int L dt=17.3 nb^{-1}");
-  plum->SetTextSize(0.04);
+  TLatex* plum = new TLatex(0.1,0.22,"pPb #int L dt=18.48 nb^{-1}");
+  plum->SetTextSize(0.05);
   TLatex* PbLum = new TLatex(0.1,0.19,"PbPb #int L dt=150 #mub^{-1}");
-  PbLum->SetTextSize(0.04);
+  PbLum->SetTextSize(0.05);
   std::string ptcutname = std::string("p_{T,1}>")+p1Str+" GeV & p_{T,2}>"+p2Str+" GeV";
   TLatex *JetPtCut = new TLatex(0.1,0.22,ptcutname.c_str());
-  JetPtCut->SetTextSize(0.04);
+  JetPtCut->SetTextSize(0.045);
   std::string phicutname = std::string("#Delta#phi_{1,2} > (")+ptop.str()+"#pi/"+pbot.str()+")";
   TLatex *DeltaPhiCut = new TLatex(0.1,0.19,phicutname.c_str());
-  DeltaPhiCut->SetTextSize(0.04);
-  std::string jetcollName = jetcoll+ " Jets in pPb";
+  DeltaPhiCut->SetTextSize(0.045);
+  std::string jetcollName = "anti-k_{T}, R=0.3 PF Jets";
   TLatex* leg4 = new TLatex(0.1,0.19,jetcollName.c_str());
-  leg4->SetTextSize(0.035);
+  leg4->SetTextSize(0.04);
   TLatex* leg5 = new TLatex(0.1,0.17,"akPu3PF Jets in PbPb");
-  leg5->SetTextSize(0.035);
+  leg5->SetTextSize(0.04);
+  TLatex* etacut = new TLatex(0.1,0.13, "|#eta|<3");
+  etacut->SetTextSize(0.06);
 
   TCanvas *c1 = new TCanvas("c10","",1200,800);
   makeMultiPanelCanvas(c1,3,2,0.,0.,0.2,0.2,0.05);
   std::string m0s=std::string("Inclusive E_{T}^{|#eta|<4}");
-  std::string m1s=std::string("E_{T}^{|#eta|<4}<"+m3Str);      
-  std::string m2s=std::string(m3Str+"#leqE_{T}^{|#eta|<4}<"+m4Str);
-  std::string m3s=std::string(m4Str+"#leqE_{T}^{|#eta|<4}<"+m5Str);
-  std::string m4s=std::string(m5Str+"#leqE_{T}^{|#eta|<4}<"+m6Str);
-  std::string m5s=std::string("E_{T}^{|#eta|<4} >"+m6Str);
+  std::string m1s=std::string("E_{T}^{|#eta|<4}<"+m3Str+" GeV");      
+  std::string m2s=std::string(m3Str+"#leqE_{T}^{|#eta|<4}<"+m4Str+" GeV");
+  std::string m3s=std::string(m4Str+"#leqE_{T}^{|#eta|<4}<"+m5Str+" GeV");
+  std::string m4s=std::string(m5Str+"#leqE_{T}^{|#eta|<4}<"+m6Str+" GeV");
+  std::string m5s=std::string("E_{T}^{|#eta|<4} >"+m6Str+" GeV");
   TLatex* legm0 = new TLatex(0.1,0.22,m0s.c_str());
   TLatex* legm1 = new TLatex(0.1,0.25,m1s.c_str());
   TLatex* legm2 = new TLatex(0.1,0.25,m2s.c_str());
@@ -579,22 +598,30 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   TLatex* t1 = new TLatex(0.1,0.27,"CMS Preliminary");
   for(int i=0; i<6; i++){
     c1->cd(i+1);
-    mult0[i]->SetXTitle(histXtitle.c_str());
+    if(i==4){
+      mult0[i]->SetXTitle(histXtitle.c_str());
+      mult0[i]->GetXaxis()->CenterTitle(true);
+      mult0[i]->SetTitleSize(0.07,"x");
+    }
     mult0[i]->SetYTitle(histYtitle.c_str());
+    mult0[i]->SetTitleOffset(1.3,"y");
+    mult0[i]->SetTitleSize(0.06,"y");
+    mult0[i]->GetYaxis()->CenterTitle(true);
     mult0[i]->Draw();
     MC[i]->Draw("hist,e,same");
     gr[i]->Draw("P,same");
     //Pbgr[i]->Draw("P,same");
     MCgr[i]->Draw("P,same");
-    // mult[8-i]->Draw("same");
+    //mult[8-i]->Draw("same");
     mult0[i]->Draw("same");
+    //pp[i]->Draw("same");
+    //ppgr[i]->Draw("P,same");
     if(i==0){
-      // pp[i]->Draw("same");
-      TLegend *leg = new TLegend(0.2,0.77,0.80,0.91);
-      leg->AddEntry(mult0[0],"2013 pPb Data, #sqrt{s}=5 TeV");
-      leg->AddEntry(MC[0],"2013 PYTHIA+HIJING pPb MC, #sqrt{s}=5.02 TeV");
-      //leg->AddEntry(mult[8],"2011 PbPb Data, #sqrt{s}=2.76 TeV");
-      //leg->AddEntry(pp[0], "2011 pp Data, #sqrt{s}=2.76 TeV");
+      TLegend *leg = new TLegend(0.2,0.75,0.90,0.91);
+      leg->AddEntry(mult0[0],"pPb, #sqrt{s_{NN}}=5.02 TeV");
+      leg->AddEntry(MC[0],"PYTHIA+HIJING, #sqrt{s_{NN}}=5.02 TeV");
+      //leg->AddEntry(mult[8],"PbPb, #sqrt{s_{NN}}=2.76 TeV");
+      //leg->AddEntry(pp[0], "PYTHIA pp, #sqrt{s_{NN}}=5.02 TeV");
       leg->SetBorderSize(0);
       leg->SetFillStyle(0);
       leg->Draw();
@@ -604,7 +631,7 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
     }
     if(i==1){
       legm1->Draw();
-      t1->SetTextSize(0.045);
+      t1->SetTextSize(0.06);
       t1->Draw();
       plum->Draw();
       //PbLum->Draw();
@@ -613,9 +640,12 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
       legm2->Draw();
       JetPtCut->Draw();
       DeltaPhiCut->Draw();
+      etacut->Draw();
     }
     if(i==3) legm3->Draw();
-    if(i==4) legm4->Draw();
+    if(i==4) {
+      legm4->Draw(); 
+    }
     if(i==5) legm5->Draw();
   }
   c1->Update();
@@ -628,32 +658,39 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   for(int i=0; i<6; i++){
     c2->cd(i+1);
     gPad->SetLogy();
-    delphi0[i]->SetXTitle(histXtitle.c_str());
+    if(i==4){
+      delphi0[i]->SetXTitle(histXtitle.c_str());    
+      delphi0[i]->GetXaxis()->CenterTitle(true);
+      delphi0[i]->SetTitleSize(0.07,"x");
+    }
     delphi0[i]->SetYTitle(histYtitle.c_str());
+    delphi0[i]->SetTitleOffset(1.3,"y");
+    delphi0[i]->GetYaxis()->CenterTitle(true);
     delphi0[i]->Draw();
-    //delphi[8-i]->Draw("same");
+    delphi[8-i]->Draw("same");
     MCdphi[i]->Draw("hist,e,same");
     delphi0[i]->Draw("same");
     if(i==0){
-      //ppdphi[i]->Draw("same");
-      TLegend *legphi = new TLegend(0.2,0.77,0.80,0.91);
-      legphi->AddEntry(delphi0[0],"2013 pPb Data, #sqrt{s}=5 TeV");
-      legphi->AddEntry(MCdphi[0],"2013 PYTHIA+HIJING pPb MC, #sqrt{s}=5.02 TeV");
-      // legphi->AddEntry(delphi[0],"2011 PbPb Data, #sqrt{s}=2.76 TeV");
-      // legphi->AddEntry(ppdphi[0],"2011 pp data, #sqrt{s}=2.76 TeV");
+      ppdphi[i]->Draw("same");
+      TLegend *legphi = new TLegend(0.2,0.75,0.90,0.91);
+      legphi->AddEntry(delphi0[0],"pPb, #sqrt{s_{NN}}=5.02 TeV");
+      legphi->AddEntry(MCdphi[0],"PYTHIA+HIJING, #sqrt{s_{NN}}=5.02 TeV");
+      legphi->AddEntry(delphi[0],"PbPb, #sqrt{s_{NN}}=2.76 TeV");
+      legphi->AddEntry(ppdphi[0],"pp, #sqrt{s_{NN}}=2.76 TeV");
       legphi->SetBorderSize(0);
       legphi->SetFillStyle(0);
       legphi->Draw();
       leg4->Draw();
-      //leg5->Draw();
+      leg5->Draw();
       legm0->SetY(0.22);
       legm0->SetX(0.1);
       legm0->Draw();
     }
     if(i==1){
-      t1->SetTextSize(0.045);
+      t1->SetTextSize(0.06);
       t1->Draw();
       legm1->Draw();
+      etacut->Draw();
     }
     if(i==2){
       plum->Draw();
@@ -717,22 +754,33 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   TLatex* vztitle2 = new TLatex(0.1,0.21,"10 <|z_{vtx}|< 20 cm");
   vztitle2->Draw();
 
-  TCanvas *c4 = new TCanvas("c4","",1200,600);
-  c4->Divide(3,1);
+
+  /////******* DOGA - THIS IS THE IMPORTANT BIT!! *****///////
+
+  TCanvas *c4 = new TCanvas("c4","",800,800);
+  makeMultiPanelCanvas(c4,1,3,0.0,0.01,0.10,0.04,0.05);
+  //c4->Divide(1,3);
   c4->cd(1);
-  TH1D *tmp = new TH1D("tmp","",1,0,80);
+  TH1D *tmp = new TH1D("tmp","",1,0,60);
   tmp->SetMaximum(0.8);
   tmp->SetMinimum(0.62);
   tmp->SetXTitle("E_{T}^{HF[|#eta|>4]}");
   tmp->SetYTitle("<p_{T,2}/p_{T,1}>");
   tmp->GetXaxis()->CenterTitle(true);
   tmp->GetYaxis()->CenterTitle(true);
-  tmp->GetYaxis()->SetTitleOffset(1.6);
+  tmp->GetYaxis()->SetLabelSize(0.08);
+  tmp->GetYaxis()->SetTitleOffset(0.55);
+  tmp->SetTitleSize(0.1, "y");
   TGraphErrors *centr[4];
   Double_t pPb_nmult[5] = {12.699,22.424,27.356,34.192,47.624};
   Double_t pPb_avgPt[5] = {mult0[1]->GetMean(), mult0[2]->GetMean(), mult0[3]->GetMean(), mult0[4]->GetMean(), mult0[5]->GetMean()};
   Double_t pPb_nmultErr[5] = {0.012, 0.0296, 0.0375, 0.0406, 0.0715};
   Double_t pPb_avgPtErr[5] = {mult0[1]->GetMeanError(), mult0[2]->GetMeanError(), mult0[3]->GetMeanError(), mult0[4]->GetMeanError(), mult0[5]->GetMeanError()};
+  
+  Double_t pPb_nmultSys[7] = {11, 12.699,22.424,27.356,34.192,47.624, 49};
+  Double_t pPb_avgPtSys[7] = {mult0[1]->GetMean(), mult0[1]->GetMean(), mult0[2]->GetMean(), mult0[3]->GetMean(), mult0[4]->GetMean(), mult0[5]->GetMean(), mult0[5]->GetMean()};
+  Double_t pPbSys[7] = {1.8, 1.8, 1.6, 1.8, 1.6, 1.8, 1.8};
+  Double_t zero[7] = {0,0,0,0,0,0,0};
 
   Double_t PbPb_nmult[5] = {15.1924, 37.45, 71.267}; //cap on HFsum<90 
   Double_t PbPb_avgPt[5] = {mult[2]->GetMean(), mult[1]->GetMean(), mult[0]->GetMean()};//,mult[2]->GetMean(),mult[1]->GetMean()};
@@ -745,27 +793,46 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   Double_t MC_avgPtErr[5] = {MC[1]->GetMeanError(), MC[2]->GetMeanError(), MC[3]->GetMeanError(), MC[4]->GetMeanError(), MC[5]->GetMeanError()};
 
   //Double_t pp_nmult[5] = {2.95567, 7.50071, 12.3948, 17.3344, 24.0483, 33.8478};
-  Double_t pp_nmult[1] = {6.578};
-  Double_t pp_avgPt[5] = {pp[0]->GetMean(), pp[1]->GetMean(), pp[2]->GetMean(), pp[3]->GetMean(), pp[4]->GetMean()};
-  Double_t pp_nmultErr[5] = {0.003,0.01,0.0105,0.0154,0.0201};
-  Double_t pp_avgPtErr[5] = {pp[0]->GetMeanError(), pp[1]->GetMeanError(), pp[2]->GetMeanError(), pp[3]->GetMeanError(), pp[4]->GetMeanError()};
+  Double_t pp_nmult[5] = {6.59, 21.98, 27.08, 33.75, 47.48};
+  Double_t pp_avgPt[5] = {pp[1]->GetMean(), pp[2]->GetMean(), pp[3]->GetMean(), pp[4]->GetMean(), pp[5]->GetMean()};
+  Double_t pp_nmultErr[5] = {0.003,0.045,0.09,0.13,0.268};
+  Double_t pp_avgPtErr[5] = {pp[1]->GetMeanError(), pp[2]->GetMeanError(), pp[3]->GetMeanError(), pp[4]->GetMeanError(), pp[5]->GetMeanError()};
 
+  //create plots with statistical error
   centr[0] = new TGraphErrors(5,pPb_nmult, pPb_avgPt, pPb_nmultErr, pPb_avgPtErr);
   centr[1] = new TGraphErrors(3,PbPb_nmult, PbPb_avgPt, PbPb_nmultErr, PbPb_avgPtErr);
   centr[2] = new TGraphErrors(5,MC_nmult, MC_avgPt, MC_nmultErr, MC_avgPtErr);
   centr[3] = new TGraphErrors(1,pp_nmult, pp_avgPt, pp_nmultErr, pp_avgPtErr);
 
+  for(int i=0; i<7; i++){
+    pPbSys[i] = 0.01*pPbSys[i]*pPb_avgPtSys[i];
+    cout << "pPbSys["<<i<<"]: " << pPbSys[i] << endl;
+  } 
+  //now plot the systematic error on top
+  TGraphErrors *sysCentr = new TGraphErrors(7, pPb_nmultSys, pPb_avgPtSys, zero, pPbSys);
+
   tmp->Draw();
-  TLegend *mleg = new TLegend(0.15,0.78,0.99,0.91);
-  mleg->AddEntry(centr[0], "2013 pPb data #sqrt{s}=5 TeV","pL");
-  mleg->AddEntry(centr[1], "2011 PbPb data #sqrt{s}=2.76 TeV","pL");
-  mleg->AddEntry(centr[2], "PYTHIA+HIJING pPb MC #sqrt{s}=5.02 TeV","pL");
-  mleg->AddEntry(centr[3], "2011 pp data #sqrt{s}=2.76 TeV","pL");
+  TLegend *mleg = new TLegend(0.15,0.75,0.99,0.91);
+  mleg->AddEntry(centr[0], "pPb, #sqrt{s_{NN}}=5.02 TeV","pL");
+  //mleg->AddEntry(centr[1], "2011 PbPb data #sqrt{s}=2.76 TeV","pL");
+  mleg->AddEntry(centr[2], "PYTHIA+HIJING, #sqrt{s_{NN}}=5.02 TeV","pL");
+  mleg->AddEntry(centr[3], "PYTHIA pp, #sqrt{s}=5.02 TeV","pL");
   mleg->SetBorderSize(0);
   mleg->SetFillStyle(0);
   mleg->Draw();
+  TLatex *cms = new TLatex(43,0.77,"CMS Preliminary");
+  cms->SetTextSize(0.07);
+  cms->Draw();
+  TLatex *pPbLum2 = new TLatex(40,0.75,"pPb #int L dt=18.48 nb^{-1}");
+  pPbLum2->SetTextSize(0.065);
+  pPbLum2->Draw();
+  //t1->SetTextSize(0.08);
   //t1->Draw();
+  sysCentr->SetFillColor(1);
+  sysCentr->SetFillStyle(3004);
+  sysCentr->Draw("3");
   centr[0]->Draw("P,same");
+  //gStyle->SetEndErrorSize(2);
   centr[1]->SetLineColor(kGreen+1);
   centr[1]->SetMarkerColor(kGreen+1);
   centr[1]->SetMarkerStyle(25);
@@ -774,24 +841,29 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   centr[3]->SetLineColor(4);
   centr[3]->SetMarkerColor(4);
   centr[3]->SetMarkerStyle(24);
-  centr[1]->Draw("P,same");
+  //centr[1]->Draw("P,same");
   centr[2]->Draw("P,same");
   centr[3]->Draw("P,same");
 
   c4->cd(2);
-  TH1D *tmp2 = new TH1D("tmp2","",1,0,80);
-  tmp2->SetMaximum(0.4);
-  tmp2->SetMinimum(0);
+  TH1D *tmp2 = new TH1D("tmp2","",1,0,60);
+  tmp2->SetMaximum(0.27);
+  tmp2->SetMinimum(0.16);
   tmp2->SetXTitle("E_{T}^{HF[|#eta|>4]}");
-  tmp2->SetYTitle("Parameterized #Delta#phi");
+  tmp2->SetYTitle("#sigma(#Delta#phi)");
   tmp2->GetXaxis()->CenterTitle(true);
   tmp2->GetYaxis()->CenterTitle(true);
-  tmp2->GetYaxis()->SetTitleOffset(1.6);
+  tmp2->GetYaxis()->SetTitleOffset(0.5);
+  tmp2->GetYaxis()->SetLabelSize(0.08);
+  tmp2->SetTitleSize(0.1, "y");
   TGraphErrors *centr2[3];
   /*Double_t pPb_avgPt[7] = {delphi0_0->GetMean(), delphi1_0->GetMean(), delphi2_0->GetMean(), delphi3_0->GetMean(), delphi4_0->GetMean(), delphi5_0->GetMean(), delphi6_0->GetMean()};
     Double_t pPb_avgPtErr[7] = {delphi0_0->GetMeanError(), delphi1_0->GetMeanError(), delphi2_0->GetMeanError(), delphi3_0->GetMeanError(), delphi4_0->GetMeanError(), delphi5_0->GetMeanError(), delphi6_0->GetMeanError()};*/
   Double_t pPb_avgPtdphi[5] = {findDelPhiAngle(delphi0[1],1), findDelPhiAngle(delphi0[2],1), findDelPhiAngle(delphi0[3],1), findDelPhiAngle(delphi0[4],1), findDelPhiAngle(delphi0[5],1)};
   Double_t pPb_avgPtErrdphi[5] = {findDelPhiAngle(delphi0[1],2), findDelPhiAngle(delphi0[2],2), findDelPhiAngle(delphi0[3],2), findDelPhiAngle(delphi0[4],2), findDelPhiAngle(delphi0[5],2)};
+
+  Double_t pPb_avgPtdphiSys[7] = {findDelPhiAngle(delphi0[1],1), findDelPhiAngle(delphi0[1],1), findDelPhiAngle(delphi0[2],1), findDelPhiAngle(delphi0[3],1), findDelPhiAngle(delphi0[4],1), findDelPhiAngle(delphi0[5],1), findDelPhiAngle(delphi0[5],1)};
+  Double_t pPbSysdphi[7] = {3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8};
 
   Double_t PbPb_avgPtdphi[5] = {findDelPhiAngle(delphi[2],1), findDelPhiAngle(delphi[1],1), findDelPhiAngle(delphi[0],1)};
   Double_t PbPb_avgPtErrdphi[5] = {findDelPhiAngle(delphi[2],2), findDelPhiAngle(delphi[1],2), findDelPhiAngle(delphi[0],2)};
@@ -799,20 +871,30 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   Double_t MC_avgPtdphi[5] = {findDelPhiAngle(MCdphi[1],1), findDelPhiAngle(MCdphi[2],1), findDelPhiAngle(MCdphi[3],1), findDelPhiAngle(MCdphi[4],1), findDelPhiAngle(MCdphi[5],1)};
   Double_t MC_avgPtErrdphi[5] = {findDelPhiAngle(MCdphi[1],2), findDelPhiAngle(MCdphi[2],2), findDelPhiAngle(MCdphi[3],2), findDelPhiAngle(MCdphi[4],2), findDelPhiAngle(MCdphi[5],2)};
 
-  Double_t pp_avgPtdphi[5] = {findDelPhiAngle(ppdphi[0],1), findDelPhiAngle(ppdphi[1],1), findDelPhiAngle(ppdphi[2],1), findDelPhiAngle(ppdphi[3],1), findDelPhiAngle(ppdphi[4],1)};
-  Double_t pp_avgPtErrdphi[5] = {findDelPhiAngle(ppdphi[0],2), findDelPhiAngle(ppdphi[1],2), findDelPhiAngle(ppdphi[2],2), findDelPhiAngle(ppdphi[3],2), findDelPhiAngle(ppdphi[4],2)};
+  Double_t pp_avgPtdphi[5] = {findDelPhiAngle(ppdphi[1],1), findDelPhiAngle(ppdphi[2],1), findDelPhiAngle(ppdphi[3],1), findDelPhiAngle(ppdphi[4],1), findDelPhiAngle(ppdphi[5],1)};
+  Double_t pp_avgPtErrdphi[5] = {findDelPhiAngle(ppdphi[1],2), findDelPhiAngle(ppdphi[2],2), findDelPhiAngle(ppdphi[3],2), findDelPhiAngle(ppdphi[4],2), findDelPhiAngle(ppdphi[5],2)};
 
+  //collect the statistical errors
   centr2[0] = new TGraphErrors(5,pPb_nmult, pPb_avgPtdphi, pPb_nmultErr, pPb_avgPtErrdphi);
   centr2[1] = new TGraphErrors(3,PbPb_nmult, PbPb_avgPtdphi, PbPb_nmultErr, PbPb_avgPtErrdphi);
   centr2[2] = new TGraphErrors(5,MC_nmult, MC_avgPtdphi, MC_nmultErr, MC_avgPtErrdphi);
   centr2[3] = new TGraphErrors(1,pp_nmult, pp_avgPtdphi, pp_nmultErr, pp_avgPtErrdphi);
+
+  for(int i=0; i<7; i++){
+    pPbSysdphi[i] = 0.01*pPbSysdphi[i]*pPb_avgPtdphiSys[i];
+  } 
+  //now plot the systematic error on top
+  TGraphErrors *dPhisysCentr = new TGraphErrors(7, pPb_nmultSys, pPb_avgPtdphiSys, zero, pPbSysdphi);
+  
+  c4->cd(2);
   
   tmp2->Draw();
-  TLatex* JetPtCut2 = new TLatex(10,0.31,ptcutname.c_str());
-  JetPtCut2->SetTextSize(0.04);
+  TLatex* JetPtCut2 = new TLatex(35,0.25,ptcutname.c_str());
+  JetPtCut2->SetTextSize(0.08);
   JetPtCut2->Draw();
-  t1->SetTextSize(0.04);
-  t1->Draw();
+  dPhisysCentr->SetFillColor(1);
+  dPhisysCentr->SetFillStyle(3004);
+  dPhisysCentr->Draw("3");
   centr2[0]->Draw("P,same");
   centr2[1]->SetLineColor(kGreen+1);
   centr2[1]->SetMarkerColor(kGreen+1);
@@ -822,22 +904,29 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   centr2[3]->SetMarkerColor(4);
   centr2[3]->SetLineColor(4);
   centr2[3]->SetMarkerStyle(24);
-  centr2[1]->Draw("P,same");
+  //centr2[1]->Draw("P,same");
   centr2[2]->Draw("P,same");
   centr2[3]->Draw("P,same");
 
   TLegend *mleg2 = new TLegend(0.19,0.78,0.61,0.91);
-  mleg2->AddEntry(centr[0], "pPb Data (2013) #sqrt{s}=5 TeV","pL");
-  mleg2->AddEntry(centr[1], "PbPb Data (2011) #sqrt{s}=2.76 TeV","pL");
-  mleg2->AddEntry(centr[2], "HIJING + PYTHIA (tune Z2) #sqrt{s}=5.02 TeV","pL");
+  mleg2->AddEntry(centr[0], "pPb, #sqrt{s_{NN}}=5 TeV","pL");
+  //mleg2->AddEntry(centr[1], "PbPb Data (2011) #sqrt{s}=2.76 TeV","pL");
+  mleg2->AddEntry(centr[2], "PYTHIA+HIJING, #sqrt{s_{NN}}=5.02 TeV","pL");
   mleg2->SetBorderSize(0);
   mleg2->SetFillStyle(0);
 
   c4->cd(3);
-  gROOT->ProcessLine(".x dijeteta-kurt_hf_wratiocuts.C");
-  TLatex* DeltaPhiCut2 = new TLatex(10,0.1,phicutname.c_str());
-  DeltaPhiCut2->SetTextSize(0.04);
+  gROOT->ProcessLine(".x dijeteta_mu.C");
+  TLatex* DeltaPhiCut2 = new TLatex(5,-0.15,phicutname.c_str());
+  DeltaPhiCut2->SetTextSize(0.08);
   DeltaPhiCut2->Draw();
+  TLatex *etacut2 = new TLatex(5,-0.32, "|#eta|<3");
+  etacut2->SetTextSize(0.08);
+  etacut2->Draw();
+  TLatex *jetc = new TLatex(5,-0.24,"anti-k_{T}(PFlow) R=0.3");
+  jetc->SetTextSize(0.08);
+
+  ///****** END OF IMPORTANT BIT! *****//////
 
   TCanvas *c8 = new TCanvas("c8","",1200,800);
   makeMultiPanelCanvas(c8,3,2,0.,0.,0.2,0.2,0.05);
@@ -865,14 +954,14 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   makeMultiPanelCanvas(c5,3,2,0.,0.,0.2,0.2,0.05);
   for(int i=0; i<6; i++){
     c5->cd(i+1);
-    mult_etapos[i]->Draw();
-    mult_etaneg[i]->Draw("same");
+    mult_etalead[i]->Draw();
+    mult_etasublead[i]->Draw("same");
     if(i==0){
       TLegend *eleg = new TLegend(0.19,0.77,0.72,0.91);
-      std::string poseta=std::string("X ("+p1Str+"/"+p2Str+"), p+Pb, #sqrt{s} = 5 TeV, tracks>"+m4Str+", eta>0");
-      std::string negeta=std::string("X ("+p1Str+"/"+p2Str+"), p+Pb, #sqrt{s} = 5 TeV, tracks>"+m4Str+", eta<0");
-      eleg->AddEntry(mult_etapos[0], poseta.c_str());
-      eleg->AddEntry(mult_etaneg[0], negeta.c_str());
+      std::string poseta=std::string("Leading #eta distro");
+      std::string negeta=std::string("subleading #eta distro");
+      eleg->AddEntry(mult_etalead[0], poseta.c_str());
+      eleg->AddEntry(mult_etasublead[0], negeta.c_str());
       eleg->SetBorderSize(0);
       eleg->SetFillStyle(0);
       eleg->Draw();
@@ -888,18 +977,42 @@ void ajPlotterNew(int p1=120, int p2=30, bool write_output=0){
   if(write_output){
     TFile *output = new TFile(outputname.c_str(),"recreate");
     output->cd();
-    for(int i=0; i<9; i++){
-      mult[i]->Write();
-      delphi[i]->Write();
-    }
-    for(int i=0; i<7; i++){
+    //for(int i=0; i<9; i++){
+    //  mult[i]->Write();
+    //  delphi[i]->Write();
+    // }
+    for(int i=0; i<6; i++){
       mult0[i]->Write();
       delphi0[i]->Write();
+      mult_etalead[i]->Scale(1./mult_etalead[i]->Integral());
+      mult_etalead[i]->Write();
+      mult_etasublead[i]->Scale(1./mult_etasublead[i]->Integral());
+      mult_etasublead[i]->Write();
     }
-    for(int i=0; i<6; i++){
-      MCdphi[i]->Write();
-      MC[i]->Write();
-    }
+    //for(int i=0; i<6; i++){
+      //  MCdphi[i]->Write();
+      //  MC[i]->Write();
+    // }
+    centr2[0]->SetNameTitle("pdphiHF","parameterized dphi");
+    centr2[0]->Write();
+    
     output->Close();
   }
+
+  /*TFile *tgColl = new TFile("tGraphCollection.root","recreate");
+  tgColl->cd();
+  centr[0]->SetNameTitle("pPbDatPt","avg pt pPb Data");
+  centr[0]->Write();
+  centr[2]->SetNameTitle("pPbMCPt","avg pt pPb MC");
+  centr[2]->Write();
+  sysCentr->SetNameTitle("pPbDatPtSys","systematics avg pt pPb Data");
+  sysCentr->Write();
+  centr2[0]->SetNameTitle("pPbDatDphi","sig(dphi) pPb Data");
+  centr2[0]->Write();
+  centr2[2]->SetNameTitle("pPbMCDphi","sig(dphi) pPb MC");
+  centr2[2]->Write();
+  dPhisysCentr->SetNameTitle("pPbDatDphiSys","systematics sig(dphi) pPb Data");
+  dPhisysCentr->Write();
+  tgColl->Close();*/
+
 }
